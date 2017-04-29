@@ -1,6 +1,6 @@
 -module(message).
 
--export([new/2,new/3,transform_params/1]).
+-export([new/2,new/3]).
 
 -define(EMPTY, <<"">>).
 -define(SPACE, <<" ">>).
@@ -13,6 +13,8 @@
 %% See https://tools.ietf.org/html/rfc2812#section-2.3
 
 
+% Create a new message from prefix (optional), command, [parameters].
+% Returns a binary.
 new(Command, Parameters) ->
     new(none, Command, Parameters).
 new(none, Command, Parameters) ->
