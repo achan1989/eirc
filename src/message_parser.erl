@@ -39,8 +39,8 @@ parse(start, S) ->
         [$:|Rest] ->
             parse(prefix, Rest);
         _ ->
-            {Command, Parameters} = parse(command, S),
-            {ok, {none, Command, Parameters}}
+            {Command, MidParams, TrailParam} = parse(command, S),
+            {ok, {none, Command, MidParams, TrailParam}}
     end;
 parse(prefix, S) ->
     {Prefix, Rest} = lists:splitwith(fun is_prefix_char/1, S),
@@ -54,8 +54,8 @@ parse(prefix, S) ->
         % Prefix must end with a space.
         ($ ) ->
             % Remove the space before parsing the command.
-            {Command, Parameters} = parse(command, tl(Rest)),
-            {ok, {Prefix, Command, Parameters}};
+            {Command, MidParams, TrailParam} = parse(command, tl(Rest)),
+            {ok, {Prefix, Command, MidParams, TrailParam}};
         _ ->
             throw({not_recognised, "Invalid end of prefix"})
     end;
@@ -66,25 +66,26 @@ parse(command, S) ->
         [] ->
             throw({not_recognised, "Invalid start of command"});
         _ ->
-            Parameters = parse(params, Rest),
-            {Command, Parameters}
+            {MidParams, TrailParam} = parse(params, Rest),
+            {Command, MidParams, TrailParam}
     end;
 
 parse(params, "\r\n") ->
-    [];
+    {[], ""};
 parse(params, []) ->
     throw({not_recognised, "Missing CRLF"});
 parse(params, S) ->
     parse(params_mid, S, [], 0).
 
 % End of parameters.
-parse(params_mid, "\r\n", Parsed, NumParsed) when NumParsed > 0 ->
-    lists:reverse(Parsed);
+parse(params_mid, "\r\n", MidParsed, NumParsed) when NumParsed > 0 ->
+    % No trail param.
+    {lists:reverse(MidParsed), ""};
 % Too many parameters.
-parse(params_mid, _S, _Parsed, NumParsed) when NumParsed >= ?MAX_NUM_PARAMS ->
+parse(params_mid, _S, _MidParsed, NumParsed) when NumParsed >= ?MAX_NUM_PARAMS ->
     throw({not_recognised, "Too many params"});
 % More parameters.
-parse(params_mid, S, Parsed, NumParsed) ->
+parse(params_mid, S, MidParsed, NumParsed) ->
     Body = try
         ($ ) = hd(S),
         tl(S)
@@ -105,17 +106,17 @@ parse(params_mid, S, Parsed, NumParsed) ->
             % If a param starts with colon, it must be the trailing param.
             % Strip off the colon and hand off to other parser.
             % We haven't parsed it yet, so NumParsed is unchanged.
-            parse(params_trail, tl(Body), Parsed, NumParsed);
+            parse(params_trail, tl(Body), MidParsed, NumParsed);
         _ ->
-            NewParsed = [Param|Parsed],
-            parse(params_mid, MoreParams, NewParsed, NumParsed+1)
+            NewMidParsed = [Param|MidParsed],
+            parse(params_mid, MoreParams, NewMidParsed, NumParsed+1)
     end;
 
-parse(params_trail, S, Parsed, NumParsed) ->
+parse(params_trail, S, MidParsed, _NumParsed) ->
     Result = lists:splitwith(fun is_param_trail_char/1, S),
     case Result of
-        {Param, _End="\r\n"} ->
-            lists:reverse([Param|Parsed]);
+        {Trail, _End="\r\n"} ->
+            {lists:reverse(MidParsed), Trail};
         _ ->
             throw({not_recognised, "Invalid end of params"})
     end.
