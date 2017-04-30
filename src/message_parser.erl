@@ -33,7 +33,6 @@ parse(S) ->
     end.
 
 parse(start, S) ->
-    io:format("start, S=~p~n", [S]),
     case S of
         "\r\n" ->
             empty;
@@ -44,7 +43,6 @@ parse(start, S) ->
             {ok, {none, Command, Parameters}}
     end;
 parse(prefix, S) ->
-    io:format("prefix, S=~p~n", [S]),
     {Prefix, Rest} = lists:splitwith(fun is_prefix_char/1, S),
     case Prefix of
         [] ->
@@ -63,7 +61,6 @@ parse(prefix, S) ->
     end;
 
 parse(command, S) ->
-    io:format("command, S=~p~n", [S]),
     {Command, Rest} = lists:splitwith(fun is_command_char/1, S),
     case Command of
         [] ->
@@ -78,7 +75,6 @@ parse(params, "\r\n") ->
 parse(params, []) ->
     throw({not_recognised, "Missing CRLF"});
 parse(params, S) ->
-    io:format("params, S=~p~n", [S]),
     parse(params_mid, S, [], 0).
 
 % End of parameters.
@@ -89,7 +85,6 @@ parse(params_mid, _S, _Parsed, NumParsed) when NumParsed >= ?MAX_NUM_PARAMS ->
     throw({not_recognised, "Too many params"});
 % More parameters.
 parse(params_mid, S, Parsed, NumParsed) ->
-    io:format("params_mid, S=~p, Parsed=~p, NumParsed=~p~n", [S,Parsed,NumParsed]),
     Body = try
         ($ ) = hd(S),
         tl(S)
@@ -117,7 +112,6 @@ parse(params_mid, S, Parsed, NumParsed) ->
     end;
 
 parse(params_trail, S, Parsed, NumParsed) ->
-    io:format("params_trail, S=~p, Parsed=~p, NumParsed=~p~n", [S,Parsed,NumParsed]),
     Result = lists:splitwith(fun is_param_trail_char/1, S),
     case Result of
         {Param, _End="\r\n"} ->
