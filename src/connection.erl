@@ -124,8 +124,20 @@ handle_info({tcp_closed, Socket}, State = #{state := closing, socket := Socket})
     notify_closed(State),
     {stop, normal, State#{state := closed}};
 
-handle_info({tcp, Socket, Rx}, State = #{socket := Socket}) ->
-    notify_rx(Rx, State),
+handle_info({tcp, Socket, Packet}, State = #{socket := Socket}) ->
+    % log("raw rx: ~p.~n", [Packet]),
+    Parsed = message_parser:from_binary(Packet),
+    case Parsed of
+        empty ->
+            ok;
+        {not_recognised, Reason} ->
+            notify_unrecognised(Packet, Reason, State);
+        % Connection automatically looks after ping/pong.
+        {ok, {_Prefix, "PING", _Mids, _Trail}=Msg} ->
+            handle_ping(Msg, State);
+        {ok, Message} ->
+            notify_message(Message, State)
+    end,
     {noreply, State};
 
 handle_info(Info, State) ->
@@ -163,8 +175,12 @@ notify_closed(State) ->
     Msg = {connection_closed, self()},
     notify_subscribers(Msg, State).
 
-notify_rx(Rx, State) ->
-    Msg = {rx, self(), Rx},
+notify_unrecognised(Packet, Reason, State) ->
+    Msg = {rx_unrecognised, self(), Packet, Reason},
+    notify_subscribers(Msg, State).
+
+notify_message(Message, State) ->
+    Msg = {message, self(), Message},
     notify_subscribers(Msg, State).
 
 notify_subscribers(Message, State) ->
@@ -175,6 +191,28 @@ notify_subscribers_loop(_Message, _Subscribers = []) -> ok;
 notify_subscribers_loop(Message, [Sub | Subs]) ->
     Sub ! Message,
     notify_subscribers_loop(Message, Subs).
+
+% Not sure if this is correct.
+% I saw the following after registration:
+%     {none,"PING",[],"tDkyQuAU^U"}
+%     {"cosmos.snoonet.org","NOTICE",["test_eirc_client"],
+%      "*** If you are having problems connecting due to ping timeouts, please
+%           type /quote PONG tDkyQuAU^U or /raw PONG tDkyQuAU^U now."}
+%
+% I wont handle some of these variants until I see them in the wild.
+%
+% handle_ping({_Prefix, "PING", [Sender], ""}, State) ->
+%     send_pong(Sender, State);
+% handle_ping({_Prefix, "PING", [_Sender,Target], ""}, State) ->
+%     send_pong(Target, State);
+% handle_ping({_Prefix, "PING", [_Sender], Target}, State) ->
+%     send_pong(Target, State);
+handle_ping({_Prefix, "PING", [], Target}, State) ->
+    send_pong(Target, State).
+
+send_pong(Target, State) ->
+    Socket = get_socket(State),
+    ok = send_message(Socket, messages:pong(Target)).
 
 log(Format, Data) ->
     io:format("[CONNECTION] ", []),
