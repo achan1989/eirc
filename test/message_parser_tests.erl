@@ -125,54 +125,62 @@ parse_invalid_crlf_test_() ->
     [
     ?_assertMatch(
         {not_recognised, "Missing CRLF"},
-        message_parser:parse("FOO"))
+        message_parser:parse("FOO")),
+
+    ?_assertMatch(
+        {not_recognised, "Invalid param"},
+        message_parser:parse(":prefix FOO one two three\r")),
+
+    ?_assertMatch(
+        {not_recognised, "Invalid end of params"},
+        message_parser:parse(":prefix FOO one two :three\r"))
     ].
 
 parse_valid_message_test_() ->
     [
     ?_assertMatch(
-        {none, "FOO", []},
+        {ok, {none, "FOO", []}},
         message_parser:parse("FOO\r\n")),
 
     ?_assertMatch(
-        {"prefix", "FOO", []},
+        {ok, {"prefix", "FOO", []}},
         message_parser:parse(":prefix FOO\r\n")),
 
     ?_assertMatch(
-        {none, "FOO", ["one"]},
+        {ok, {none, "FOO", ["one"]}},
         message_parser:parse("FOO one\r\n")),
 
     ?_assertMatch(
-        {"prefix", "FOO", ["one"]},
+        {ok, {"prefix", "FOO", ["one"]}},
         message_parser:parse(":prefix FOO one\r\n")),
 
     ?_assertMatch(
-        {none, "FOO", ["one", "two"]},
+        {ok, {none, "FOO", ["one", "two"]}},
         message_parser:parse("FOO one two\r\n")),
 
     ?_assertMatch(
-        {"prefix", "FOO", ["one", "two"]},
+        {ok, {"prefix", "FOO", ["one", "two"]}},
         message_parser:parse(":prefix FOO one :two\r\n")),
 
     ?_assertMatch(
-        {none, "FOO", ["one", "two", "three"]},
+        {ok, {none, "FOO", ["one", "two", "three"]}},
         message_parser:parse("FOO one two :three\r\n")),
 
     ?_assertMatch(
-        {"prefix", "FOO", ["one", "two", "three"]},
+        {ok, {"prefix", "FOO", ["one", "two", "three"]}},
         message_parser:parse(":prefix FOO one two :three\r\n")),
 
     ?_assertMatch(
-        {"prefix", "FOO", ["one", "two", "three: blind mice"]},
+        {ok, {"prefix", "FOO", ["one", "two", "three: blind mice"]}},
         message_parser:parse(":prefix FOO one two :three: blind mice\r\n")),
 
     ?_assertMatch(
-        {"prefix", "FOO", ["one", "two", "three :blind mice"]},
+        {ok, {"prefix", "FOO", ["one", "two", "three :blind mice"]}},
         message_parser:parse(":prefix FOO one two :three :blind mice\r\n")),
 
     ?_assertMatch(
-        {"prefix", "FOO", ["1","2","3","4","5","6","7","8","9","10","11",
-            "12","13","14","15"]},
+        {ok, {"prefix", "FOO", ["1","2","3","4","5","6","7","8","9","10","11",
+            "12","13","14","15"]}},
         message_parser:parse(":prefix FOO 1 2 3 4 5 6 7 8 9 10 11 12 13 "
             "14 15\r\n"))
     ].
@@ -183,7 +191,7 @@ parse_long_message_test() ->
     % parameter of 506 bytes.
     OneParam = lists:duplicate(506, $x),
     ?assertMatch(
-        {none, "FOO", [OneParam]},
+        {ok, {none, "FOO", [OneParam]}},
         message_parser:parse("FOO " ++ OneParam ++ "\r\n")).
 
 parse_too_long_message_test_() ->

@@ -15,8 +15,8 @@
 
 % Parse a binary into its constituent parts.
 % Returns:
-% {Prefix, Command, [Parameters]} or
-% {none, Command, [Parameters]} or
+% {ok, {Prefix, Command, [Parameters]}} or
+% {ok, {none, Command, [Parameters]}} or
 % empty
 % {not_recognised, Reason}
 from_binary(Packet) when is_binary(Packet) ->
@@ -41,7 +41,7 @@ parse(start, S) ->
             parse(prefix, Rest);
         _ ->
             {Command, Parameters} = parse(command, S),
-            {none, Command, Parameters}
+            {ok, {none, Command, Parameters}}
     end;
 parse(prefix, S) ->
     io:format("prefix, S=~p~n", [S]),
@@ -57,7 +57,7 @@ parse(prefix, S) ->
         ($ ) ->
             % Remove the space before parsing the command.
             {Command, Parameters} = parse(command, tl(Rest)),
-            {Prefix, Command, Parameters};
+            {ok, {Prefix, Command, Parameters}};
         _ ->
             throw({not_recognised, "Invalid end of prefix"})
     end;
@@ -123,7 +123,7 @@ parse(params_trail, S, Parsed, NumParsed) ->
         {Param, _End="\r\n"} ->
             lists:reverse([Param|Parsed]);
         _ ->
-            todo_unmatched
+            throw({not_recognised, "Invalid end of params"})
     end.
 
 is_prefix_char(C) ->
