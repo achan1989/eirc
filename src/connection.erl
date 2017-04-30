@@ -58,8 +58,8 @@ terminate(_Connection) ->
 % Returns ok
 register(Connection, Nick) ->
     gen_server:call(Connection, {register, Nick}).
-register(Connection, Nick, User) ->
-    gen_server:call(Connection, {register, Nick, User}).
+register(Connection, Nick, {Username, Password}) ->
+    gen_server:call(Connection, {register, Nick, {Username, Password}}).
 
 
 %% gen_server callbacks.
@@ -110,8 +110,7 @@ handle_call({register, Nick}, _Subscriber, State = #{state := open}) ->
     Socket = get_socket(State),
     ok = send_message(Socket, messages:nickname(Nick)),
     {reply, ok, State};
-handle_call({register, Nick, User}, _Subscriber, State = #{state := open}) ->
-    {Username, Password} = User,
+handle_call({register, Nick, {Username, Password}}, _Subscriber, State = #{state := open}) ->
     Socket = get_socket(State),
     ok = send_message(Socket, messages:password(Password)),
     ok = send_message(Socket, messages:nickname(Nick)),
