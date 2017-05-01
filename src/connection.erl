@@ -134,6 +134,7 @@ handle_info({tcp, Socket, Packet}, State = #{socket := Socket}) ->
             notify_unrecognised(Packet, Reason, State);
         % Connection automatically looks after ping/pong.
         {ok, {_Prefix, "PING", _Mids, _Trail}=Msg} ->
+            log("Handling ping from ~p: ~p.~n", [Socket, Msg]),
             handle_ping(Msg, State);
         {ok, Message} ->
             notify_message(Message, State)
